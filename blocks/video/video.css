@@ -1,0 +1,14 @@
+.video {
+    max-width: 900px;
+    margin: 2rem auto;
+}
+
+.video iframe {
+    width: 100%;
+    aspect-ratio: 16/9;
+    border: 0;
+}
+
+.video blockquote {
+    margin: 0 auto;
+}

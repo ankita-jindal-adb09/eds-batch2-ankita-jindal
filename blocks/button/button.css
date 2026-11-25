@@ -1,0 +1,36 @@
+.custom-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  border: none;
+  border-radius: 999px;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+/* Alert Button */
+.alert-btn {
+  background-color: #1473e6;
+  color: #fff;
+}
+
+.alert-btn:hover {
+  background-color: #0d66d0;
+}
+
+/* Submit Button */
+.submit-btn {
+  background-color: #2d9d52;
+  color: #fff;
+}
+
+.submit-btn:hover {
+  background-color: #268e49;
+}
+
+.button-icon {
+  width: 20px;
+  height: 20px;
+}
