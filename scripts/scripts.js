@@ -79,6 +79,12 @@ function buildWidgetAutoBlocks(main) {
  */
 function buildAutoBlocks(main) {
   try {
+    if (/\/product-details(?:\.html)?\/?$/.test(window.location.pathname)) {
+      main.querySelectorAll('.products').forEach((block) => {
+        block.classList.replace('products', 'product-details');
+      });
+    }
+
     // auto load `*/fragments/*` references
     const fragments = [...main.querySelectorAll('a[href*="/fragments/"]')].filter((f) => !f.closest('.fragment'));
     if (fragments.length > 0) {

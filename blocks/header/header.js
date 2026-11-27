@@ -1,4 +1,5 @@
 import { getMetadata } from '../../scripts/aem.js';
+import { CART_KEY, CART_UPDATED_EVENT, getCartCount } from '../../scripts/cart.js';
 import { loadFragment } from '../fragment/fragment.js';
 
 // media query match that indicates mobile/tablet width
@@ -107,6 +108,25 @@ export default async function decorate(block) {
     const section = nav.children[i];
     if (section) section.classList.add(`nav-${c}`);
   });
+
+  const navTools = nav.querySelector('.nav-tools');
+  if (navTools) {
+    const cartLink = document.createElement('a');
+    cartLink.className = 'nav-cart';
+    cartLink.href = '/capstone/cart';
+    cartLink.innerHTML = '<img src="/icons/cart.svg" alt="" width="24" height="24"><span class="nav-cart-count"></span>';
+    const badge = cartLink.querySelector('.nav-cart-count');
+    const renderCartCount = (count) => {
+      badge.textContent = count || '';
+      cartLink.setAttribute('aria-label', `Cart, ${count} item${count === 1 ? '' : 's'}`);
+    };
+    renderCartCount(getCartCount());
+    window.addEventListener(CART_UPDATED_EVENT, (e) => renderCartCount(e.detail));
+    window.addEventListener('storage', (e) => {
+      if (e.key === CART_KEY) renderCartCount(getCartCount());
+    });
+    navTools.append(cartLink);
+  }
 
   const navBrand = nav.querySelector('.nav-brand');
   const brandLink = navBrand.querySelector('.button');
