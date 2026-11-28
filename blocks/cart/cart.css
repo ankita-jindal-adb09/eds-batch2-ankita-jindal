@@ -64,6 +64,7 @@
   background: linear-gradient(135deg, #f3ecfb 0%, #fdfbff 100%);
 }
 
+.cart .cart-item-image picture,
 .cart .cart-item-image img {
   display: block;
   width: 100%;

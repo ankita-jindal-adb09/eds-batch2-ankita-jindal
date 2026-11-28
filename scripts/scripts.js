@@ -41,7 +41,16 @@ if (window.trustedTypes && window.trustedTypes.createPolicy) {
  * load fonts.css and set a session storage flag
  */
 async function loadFonts() {
-  await loadCSS(`${window.hlx.codeBasePath}/styles/fonts.css`);
+  try {
+    await Promise.all([
+      loadCSS(`${window.hlx.codeBasePath}/styles/fonts.css`),
+      loadCSS('https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700&family=Playfair+Display:wght@600;700;800&display=swap'),
+    ]);
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error('Font stylesheet loading failed', error);
+    return;
+  }
   try {
     if (!window.location.hostname.includes('localhost')) sessionStorage.setItem('fonts-loaded', 'true');
   } catch (e) {
@@ -166,12 +175,24 @@ export function decorateMain(main) {
  * @param {Element} doc The container element
  */
 async function loadEager(doc) {
+  // the capstone storefront is the home page of the site
+  if (window.location.pathname === '/') {
+    window.location.replace(`/capstone/${window.location.search}${window.location.hash}`);
+    return;
+  }
   document.documentElement.lang = 'en';
   decorateTemplateAndTheme();
   const main = doc.querySelector('main');
   if (main) {
     decorateMain(main);
     document.body.classList.add('appear');
+    const firstImage = main.querySelector('img');
+    if (firstImage) {
+      firstImage.loading = 'eager';
+      firstImage.fetchPriority = 'high';
+      firstImage.decoding = 'async';
+    }
+    loadHeader(doc.querySelector('body > header'));
     await loadSection(main.querySelector('.section'), waitForFirstImage);
   }
 
@@ -190,8 +211,6 @@ async function loadEager(doc) {
  * @param {Element} doc The container element
  */
 async function loadLazy(doc) {
-  loadHeader(doc.querySelector('body > header'));
-
   const main = doc.querySelector('main');
   await loadSections(main);
 

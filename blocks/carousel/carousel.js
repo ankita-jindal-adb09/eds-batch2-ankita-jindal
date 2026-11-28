@@ -4,7 +4,19 @@ function updateActiveSlide(slide) {
 
   block.dataset.activeSlide = slideIndex;
 
-  block.querySelectorAll('.carousel-slide').forEach((item, index) => {
+  const allSlides = block.querySelectorAll('.carousel-slide');
+  const activeImage = slide.querySelector('img');
+  if (activeImage) activeImage.loading = 'eager';
+  const warmNextSlide = () => {
+    allSlides[(slideIndex + 1) % allSlides.length]?.querySelectorAll('img[loading="lazy"]').forEach((img) => {
+      img.loading = 'eager';
+    });
+  };
+  // Do not compete with the current banner while its image is downloading.
+  if (!activeImage || activeImage.complete) warmNextSlide();
+  else activeImage.addEventListener('load', warmNextSlide, { once: true });
+
+  allSlides.forEach((item, index) => {
     item.setAttribute('aria-hidden', index !== slideIndex);
 
     item.querySelectorAll('a').forEach((link) => {
@@ -26,6 +38,13 @@ function updateActiveSlide(slide) {
         button.removeAttribute('aria-current');
       }
     });
+
+  // restart the autoplay progress line for the new slide
+  const bar = block.querySelector('.carousel-progress span');
+  bar?.getAnimations().forEach((animation) => {
+    animation.currentTime = 0;
+    animation.play();
+  });
 }
 
 function showSlide(block, slideIndex = 0) {
@@ -214,6 +233,16 @@ export default function decorate(block) {
 
     container.append(navigation);
 
+    // autoplay: advance when the progress line finishes (paused via CSS on hover/focus)
+    const progress = document.createElement('div');
+    progress.className = 'carousel-progress';
+    progress.innerHTML = '<span></span>';
+    progress.addEventListener('animationend', () => {
+      showSlide(block, Number(block.dataset.activeSlide) + 1);
+    });
+
+    container.append(progress);
+
     bindEvents(block);
   }
 
@@ -224,14 +253,4 @@ export default function decorate(block) {
   if (firstSlide) {
     updateActiveSlide(firstSlide);
   }
-
-  // Optional Auto Play
-  setInterval(() => {
-    if (block.querySelectorAll('.carousel-slide').length > 1) {
-      showSlide(
-        block,
-        Number(block.dataset.activeSlide) + 1,
-      );
-    }
-  }, 5000);
 }

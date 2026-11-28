@@ -436,6 +436,7 @@
   background: linear-gradient(135deg, var(--ma-soft) 0%, #fdfbff 100%);
 }
 
+.my-account .account-item-image picture,
 .my-account .account-item-image img {
   display: block;
   width: 100%;

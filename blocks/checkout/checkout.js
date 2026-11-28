@@ -1,6 +1,7 @@
 import {
   clearCart, formatMoney as money, getCart, getCartTotals, unitPrice,
 } from '../../scripts/cart.js';
+import { createProductPicture } from '../../scripts/products-data.js';
 
 const ORDERS_KEY = 'essence-orders';
 const PROFILE_KEY = 'essence-profile';
@@ -283,12 +284,9 @@ function createSummary(cart, totals, banner) {
     const row = el('li', 'checkout-item');
     const media = el('div', 'checkout-item-image');
     if (typeof item.image === 'string' && item.image.trim()) {
-      const img = document.createElement('img');
-      img.src = item.image;
-      img.alt = item.name || '';
-      img.loading = 'lazy';
-      img.addEventListener('error', () => img.remove());
-      media.append(img);
+      const picture = createProductPicture(item.image, item.name || '', false, [{ width: '200' }]);
+      picture.querySelector('img').addEventListener('error', () => picture.remove());
+      media.append(picture);
     }
     media.append(el('span', 'checkout-item-qty', String(item.quantity)));
     const info = el('div', 'checkout-item-info');

@@ -418,6 +418,7 @@
   background: linear-gradient(135deg, var(--co-soft) 0%, #fdfbff 100%);
 }
 
+.checkout .checkout-item-image picture,
 .checkout .checkout-item-image img {
   display: block;
   width: 100%;

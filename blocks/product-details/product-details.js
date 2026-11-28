@@ -1,12 +1,71 @@
-import { getProducts, createAddToCartButton } from '../../scripts/products-data.js';
+import {
+  getProducts, createAddToCartButton, createProductBreadcrumbs, createProductPicture,
+} from '../../scripts/products-data.js';
+import { FREE_SHIPPING_THRESHOLD } from '../../scripts/cart.js';
 
-function createBackButton() {
-  const button = document.createElement('button');
-  button.type = 'button';
-  button.className = 'product-details-back';
-  button.textContent = '← Back to products';
-  button.addEventListener('click', () => window.history.back());
-  return button;
+const LISTING_URL = '/capstone/product-listing';
+
+function createBackLink() {
+  const link = document.createElement('a');
+  link.className = 'product-details-back';
+  link.href = LISTING_URL;
+  if (document.referrer) {
+    const referrer = new URL(document.referrer);
+    if (referrer.origin === window.location.origin
+      && /\/capstone\/product-listing(?:\.html)?\/?$/.test(referrer.pathname)) {
+      link.href = `${referrer.pathname}${referrer.search}${referrer.hash}`;
+    }
+  }
+  link.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m10 6-6 6 6 6M4 12h16"/></svg>';
+  const label = document.createElement('span');
+  label.textContent = 'Back to products';
+  link.append(label);
+  return link;
+}
+
+function createTextSection(title, text) {
+  if (typeof text !== 'string' || !text.trim()) return null;
+  const section = document.createElement('section');
+  section.className = 'product-details-section';
+  const heading = document.createElement('h3');
+  heading.textContent = title;
+  const description = document.createElement('p');
+  description.className = 'product-details-description';
+  description.textContent = text.trim();
+  section.append(heading, description);
+  return section;
+}
+
+function createSpecifications(product) {
+  const fields = [
+    ['Brand', 'Brand'],
+    ['Gender', 'For'],
+    ['Category', 'Fragrance family'],
+    ['Size', 'Size'],
+    ['Collection', 'Collections'],
+    ['Concentration', 'Concentration'],
+    ['Top Notes', 'Top notes'],
+    ['Heart Notes', 'Heart notes'],
+    ['Base Notes', 'Base notes'],
+  ].filter(([field]) => typeof product[field] === 'string' && product[field].trim());
+  if (!fields.length) return null;
+  const section = document.createElement('section');
+  section.className = 'product-details-section';
+  const heading = document.createElement('h3');
+  heading.textContent = 'Product details';
+  const list = document.createElement('dl');
+  list.className = 'product-details-specifications';
+  fields.forEach(([field, label]) => {
+    const row = document.createElement('div');
+    const term = document.createElement('dt');
+    term.textContent = label;
+    const value = document.createElement('dd');
+    value.textContent = product[field].trim();
+    row.append(term, value);
+    list.append(row);
+  });
+  section.append(heading, list);
+  return section;
 }
 
 function createPurchaseControls(product) {
@@ -61,11 +120,11 @@ function renderProduct(product) {
   figure.className = 'product-details-image';
 
   if (typeof product.Image === 'string' && product.Image.trim()) {
-    const img = document.createElement('img');
-    img.src = product.Image;
-    img.alt = product.Name;
-    img.addEventListener('error', () => figure.classList.add('no-image'));
-    figure.append(img);
+    const picture = createProductPicture(product.Image, product.Name, true, [
+      { media: '(min-width: 900px)', width: '1200' }, { width: '750' },
+    ]);
+    picture.querySelector('img').addEventListener('error', () => figure.classList.add('no-image'));
+    figure.append(picture);
   } else {
     const placeholder = document.createElement('p');
     placeholder.className = 'product-details-image-placeholder';
@@ -84,15 +143,19 @@ function renderProduct(product) {
   name.className = 'product-details-name';
   name.textContent = product.Name;
 
-  const rating = document.createElement('p');
-  rating.className = 'product-rating';
-  rating.textContent = `★ ${product.Rating}`;
-
   const price = document.createElement('p');
   price.className = 'product-details-price';
   price.textContent = `$${product['Price ($)']}`;
 
-  info.append(category, name, rating);
+  info.append(category, name);
+  const ratingValue = Number.parseFloat(product.Rating);
+  if (Number.isFinite(ratingValue) && ratingValue >= 0 && ratingValue <= 5) {
+    const rating = document.createElement('p');
+    rating.className = 'product-rating';
+    rating.textContent = `\u2605 ${ratingValue} / 5`;
+    rating.setAttribute('aria-label', `Rated ${ratingValue} out of 5`);
+    info.append(rating);
+  }
   if (typeof product.Size === 'string' && product.Size.trim()) {
     const size = document.createElement('p');
     size.className = 'product-details-size';
@@ -116,15 +179,21 @@ function renderProduct(product) {
     info.append(list);
   }
 
+  info.append(createPurchaseControls(product));
+  const shipping = document.createElement('p');
+  shipping.className = 'product-details-shipping';
+  shipping.textContent = `Complimentary shipping on orders of $${FREE_SHIPPING_THRESHOLD} or more.`;
+  info.append(shipping);
+
   const descriptionText = [product['Extended Description'], product.Description]
     .find((value) => typeof value === 'string' && value.trim());
-  if (descriptionText) {
-    const description = document.createElement('p');
-    description.className = 'product-details-description';
-    description.textContent = descriptionText.trim();
-    info.append(description);
-  }
-  info.append(createPurchaseControls(product), createBackButton());
+  [
+    createTextSection('About this fragrance', descriptionText),
+    createSpecifications(product),
+    createTextSection('Ingredients', product.Ingredients),
+    createTextSection('How to use', product['How to Use']),
+  ].filter(Boolean).forEach((section) => info.append(section));
+  info.append(createBackLink());
   layout.append(figure, info);
   return layout;
 }
@@ -136,13 +205,19 @@ function renderNotFound() {
   const text = document.createElement('p');
   text.textContent = 'Sorry, we could not find that product.';
 
-  message.append(text, createBackButton());
+  message.append(text, createBackLink());
   return message;
 }
 
 export default async function decorate(block) {
   const id = new URLSearchParams(window.location.search).get('id');
   block.textContent = '';
+  const breadcrumb = createProductBreadcrumbs([
+    { label: 'Home', href: '/capstone/' },
+    { label: 'Perfumes', href: LISTING_URL },
+    { label: 'Product details' },
+  ]);
+  block.append(breadcrumb);
   if (!id) {
     block.append(renderNotFound());
     return;
@@ -151,6 +226,7 @@ export default async function decorate(block) {
   try {
     const products = await getProducts();
     const product = products.find((item) => item.Name === id);
+    if (product) breadcrumb.querySelector('.product-breadcrumb-current').textContent = product.Name;
     block.append(product ? renderProduct(product) : renderNotFound());
   } catch (error) {
     // eslint-disable-next-line no-console
@@ -158,6 +234,6 @@ export default async function decorate(block) {
     const message = document.createElement('p');
     message.setAttribute('role', 'alert');
     message.textContent = 'We could not load this perfume. Please refresh the page to try again.';
-    block.append(message, createBackButton());
+    block.append(message, createBackLink());
   }
 }

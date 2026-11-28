@@ -1,9 +1,98 @@
 import { getMetadata } from '../../scripts/aem.js';
-import { CART_KEY, CART_UPDATED_EVENT, getCartCount } from '../../scripts/cart.js';
+import {
+  CART_KEY, CART_UPDATED_EVENT, FREE_SHIPPING_THRESHOLD, getCartCount,
+} from '../../scripts/cart.js';
 import { loadFragment } from '../fragment/fragment.js';
 
 // media query match that indicates mobile/tablet width
 const isDesktop = window.matchMedia('(min-width: 900px)');
+
+const NAV_PATH = '/capstone/nav';
+const HOME_URL = '/capstone/';
+const ACCOUNT_URL = '/capstone/my-account';
+
+// Monogram: gold-capped perfume bottle inside a gold ring
+const LOGO_MARK = `<svg class="nav-logo-mark" viewBox="0 0 48 48" aria-hidden="true">
+  <defs>
+    <linearGradient id="nav-logo-gold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f6d77a"/><stop offset=".55" stop-color="#c9a227"/><stop offset="1" stop-color="#8a6a12"/>
+    </linearGradient>
+    <linearGradient id="nav-logo-glass" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#8b5cc6"/><stop offset="1" stop-color="#3a1f57"/>
+    </linearGradient>
+  </defs>
+  <circle cx="24" cy="24" r="22.5" fill="none" stroke="url(#nav-logo-gold)" stroke-width="1.5"/>
+  <rect x="19.5" y="7.5" width="9" height="6" rx="1.5" fill="url(#nav-logo-gold)"/>
+  <rect x="21.5" y="13.5" width="5" height="3.5" fill="url(#nav-logo-gold)"/>
+  <rect x="13" y="17" width="22" height="23" rx="6" fill="url(#nav-logo-glass)"/>
+  <path d="M16.5 21v6" stroke="#fff" stroke-opacity=".35" stroke-width="1.6" stroke-linecap="round"/>
+  <text x="24.5" y="34" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="11" font-style="italic" fill="url(#nav-logo-gold)">EL</text>
+</svg>`;
+
+const ACCOUNT_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7"/></svg>';
+
+const LISTING_URL = '/capstone/product-listing';
+
+// Nav labels map to spreadsheet filters; unmatched labels show all perfumes.
+const NAV_CATEGORIES = {
+  women: 'Women',
+  men: 'Men',
+  'unisex & shared scents': 'Unisex',
+  floral: 'Floral',
+  'oud & oriental': 'Oud & Oriental',
+  'fresh & citrus': 'Fresh & Citrus',
+  'best sellers': '__bestsellers__',
+};
+
+const NAV_COLLECTIONS = {
+  'new arrivals': 'New Arrival',
+  'new arrival': 'New Arrival',
+  'seasonal edits': 'Seasonal Edition',
+  'seasonal edition': 'Seasonal Edition',
+};
+
+function linkNavToListing(navSections) {
+  navSections?.querySelectorAll('a').forEach((link) => {
+    const label = link.textContent.trim().toLowerCase();
+    const collection = NAV_COLLECTIONS[label];
+    if (collection) {
+      link.href = `${LISTING_URL}?collection=${encodeURIComponent(collection)}`;
+      return;
+    }
+    const category = NAV_CATEGORIES[label];
+    link.href = category ? `${LISTING_URL}?category=${encodeURIComponent(category)}` : LISTING_URL;
+  });
+}
+
+function decorateBrand(navBrand) {
+  if (!navBrand) return;
+  // Keep the authored brand name but drop emoji/decorative characters
+  const name = navBrand.textContent.replace(/[^\p{L}\p{N}\s&'-]/gu, '').replace(/\s+/g, ' ').trim() || 'Essence Luxe';
+  const logo = document.createElement('a');
+  logo.className = 'nav-logo';
+  logo.href = HOME_URL;
+  logo.setAttribute('aria-label', `${name} home`);
+  logo.innerHTML = `${LOGO_MARK}<span class="nav-logo-text"><span class="nav-logo-name"></span><span class="nav-logo-tagline">Parfums de Luxe</span></span>`;
+  logo.querySelector('.nav-logo-name').textContent = name;
+  navBrand.replaceChildren(logo);
+}
+
+function createAccountLink() {
+  const account = document.createElement('a');
+  account.className = 'nav-account';
+  account.href = ACCOUNT_URL;
+  account.setAttribute('aria-label', 'My account');
+  account.innerHTML = `${ACCOUNT_ICON}<span class="nav-account-label">Account</span>`;
+  return account;
+}
+
+function createAnnouncement() {
+  const bar = document.createElement('div');
+  bar.className = 'nav-announcement';
+  bar.innerHTML = `<p class="nav-announcement-text"><span>Complimentary shipping on orders over $${FREE_SHIPPING_THRESHOLD}</span>
+    <span class="nav-announcement-extra">Luxury gift wrapping on every order</span></p>`;
+  return bar;
+}
 
 /**
  * Closes the open nav dropdown (desktop) or the nav menu (mobile) on Escape
@@ -94,14 +183,30 @@ function toggleMenu(nav, navSections, forceExpanded = null) {
 export default async function decorate(block) {
   // load nav as fragment
   const navMeta = getMetadata('nav');
-  const navPath = navMeta ? new URL(navMeta, window.location).pathname : '/nav';
+  const navPath = navMeta ? new URL(navMeta, window.location).pathname : NAV_PATH;
   const fragment = await loadFragment(navPath);
+  if (!fragment) return;
 
   // decorate nav DOM
   block.textContent = '';
   const nav = document.createElement('nav');
   nav.id = 'nav';
-  while (fragment.firstElementChild) nav.append(fragment.firstElementChild);
+  const navBlock = fragment.querySelector('.nav');
+  if (navBlock) {
+    // authored as a "nav" block table: each row becomes brand / sections / tools
+    [...navBlock.children].forEach((row) => {
+      const section = document.createElement('div');
+      const wrapper = document.createElement('div');
+      wrapper.className = 'default-content-wrapper';
+      wrapper.append(...(row.firstElementChild?.childNodes || []));
+      section.append(wrapper);
+      nav.append(section);
+    });
+    // tools are built in code (account, cart), so drop authored emoji links
+    nav.children[2]?.querySelector('.default-content-wrapper')?.replaceChildren();
+  } else {
+    while (fragment.firstElementChild) nav.append(fragment.firstElementChild);
+  }
 
   const classes = ['brand', 'sections', 'tools'];
   classes.forEach((c, i) => {
@@ -125,17 +230,13 @@ export default async function decorate(block) {
     window.addEventListener('storage', (e) => {
       if (e.key === CART_KEY) renderCartCount(getCartCount());
     });
-    navTools.append(cartLink);
+    navTools.append(createAccountLink(), cartLink);
   }
 
-  const navBrand = nav.querySelector('.nav-brand');
-  const brandLink = navBrand.querySelector('.button');
-  if (brandLink) {
-    brandLink.className = '';
-    brandLink.closest('.button-container').className = '';
-  }
+  decorateBrand(nav.querySelector('.nav-brand'));
 
   const navSections = nav.querySelector('.nav-sections');
+  linkNavToListing(navSections);
   if (navSections) {
     navSections.querySelectorAll(':scope .default-content-wrapper > ul > li').forEach((navSection) => {
       const subList = navSection.querySelector(':scope > ul');
@@ -175,6 +276,10 @@ export default async function decorate(block) {
 
   const navWrapper = document.createElement('div');
   navWrapper.className = 'nav-wrapper';
-  navWrapper.append(nav);
+  navWrapper.append(createAnnouncement(), nav);
   block.append(navWrapper);
+
+  const onScroll = () => navWrapper.classList.toggle('is-scrolled', window.scrollY > 8);
+  window.addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
 }

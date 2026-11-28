@@ -2,6 +2,7 @@ import {
   CART_KEY, CART_UPDATED_EVENT, FREE_SHIPPING_THRESHOLD, clearCart, formatMoney as money,
   getCart, getCartTotals, setCartItemQuantity, unitPrice as linePrice,
 } from '../../scripts/cart.js';
+import { createProductPicture } from '../../scripts/products-data.js';
 
 function el(tag, className, text) {
   const node = document.createElement(tag);
@@ -38,12 +39,9 @@ function createItem(item) {
   const media = el('a', 'cart-item-image');
   media.href = href;
   if (typeof item.image === 'string' && item.image.trim()) {
-    const img = document.createElement('img');
-    img.src = item.image;
-    img.alt = item.name;
-    img.loading = 'lazy';
-    img.addEventListener('error', () => media.classList.add('no-image'));
-    media.append(img);
+    const picture = createProductPicture(item.image, item.name, false, [{ width: '200' }]);
+    picture.querySelector('img').addEventListener('error', () => media.classList.add('no-image'));
+    media.append(picture);
   }
 
   const info = el('div', 'cart-item-info');

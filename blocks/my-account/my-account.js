@@ -1,4 +1,5 @@
 import { formatMoney as money, unitPrice } from '../../scripts/cart.js';
+import { createProductPicture } from '../../scripts/products-data.js';
 
 const ORDERS_KEY = 'essence-orders';
 const PROFILE_KEY = 'essence-profile';
@@ -199,12 +200,9 @@ function createItems(order) {
     const row = el('li', 'account-item');
     const media = el('div', 'account-item-image');
     if (typeof item.image === 'string' && item.image.trim()) {
-      const img = document.createElement('img');
-      img.src = item.image;
-      img.alt = item.name || '';
-      img.loading = 'lazy';
-      img.addEventListener('error', () => img.remove());
-      media.append(img);
+      const picture = createProductPicture(item.image, item.name || '', false, [{ width: '200' }]);
+      picture.querySelector('img').addEventListener('error', () => picture.remove());
+      media.append(picture);
     }
     const info = el('div', 'account-item-info');
     info.append(
